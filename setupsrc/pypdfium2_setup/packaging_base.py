@@ -115,6 +115,8 @@ LibnameForSystem = {
 BinaryPlatforms = list(ReleaseNames.keys())
 BinarySystems   = list(LibnameForSystem.keys())
 
+NixHardcodedVersion = 6124
+
 
 class PdfiumVer:
     
@@ -124,39 +126,19 @@ class PdfiumVer:
     @staticmethod
     @functools.lru_cache(maxsize=1)
     def get_latest():
-        git_ls = run_cmd(["git", "ls-remote", f"{ReleaseRepo}.git"], cwd=None, capture=True)
-        tag = git_ls.split("\t")[-1]
-        return int( tag.split("/")[-1] )
+        return NixHardcodedVersion
     
     @classmethod
     def to_full(cls, v_short):
-        
-        # FIXME The ls-remote call is fairly expensive. While cached in memory for a process lifetime, it can cause a significant slowdown for consecutive process runs.
-        # There may be multiple ways to improve this, like adding some disk cache to ensure it would only be called once for a whole session, or maybe adding a second strategy that would parse the pdfium-binaries VERSION file, and use the chromium refs only for sourcebuild.
-        
-        v_short = int(v_short)
-        rc = cls._refs_cache
-        
-        if rc["lines"] is None:
-            print(f"Fetching chromium refs ...", file=sys.stderr)
-            ChromiumURL = "https://chromium.googlesource.com/chromium/src"
-            rc["lines"] = run_cmd(["git", "ls-remote", "--sort", "-version:refname", "--tags", ChromiumURL, '*.*.*.0'], cwd=None, capture=True).split("\n")
-        
-        if rc["cursor"] is None or rc["cursor"] > v_short:
-            for i, line in enumerate(rc["lines"]):
-                ref = line.split("\t")[-1].rsplit("/", maxsplit=1)[-1]
-                full_ver = cls.scheme(*[int(v) for v in ref.split(".")])
-                rc["dict"][full_ver.build] = full_ver
-                if full_ver.build == v_short:
-                    rc["cursor"] = full_ver.build
-                    rc["lines"] = rc["lines"][i+1:]
-                    break
-        
-        full_ver = rc["dict"][v_short]
-        print(f"Resolved {v_short} -> {full_ver}", file=sys.stderr)
-        
-        return full_ver
+        # can be found using 
+        # git ls-remote --sort -version:refname --tags https://chromium.googlesource.com/chromium/src '*.*.*.0' | awk -F '/' '{print $NF}' | grep $NixHardcodedVersion
+        # where the minor shoud match the NixHardcodedVersion
+        # after which a dict is returned
+        PdfiumVerTuple = namedtuple("PdfiumVerTuple", ["build", "major", "minor", "patch"])
 
+        # Simulate a return value for full_ver
+        full_ver = PdfiumVerTuple(build=121, major=0, minor=NixHardcodedVersion, patch=0)
+        return full_ver
 
 def read_json(fp):
     with open(fp, "r") as buf:

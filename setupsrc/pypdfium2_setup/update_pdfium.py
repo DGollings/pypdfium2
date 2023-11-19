@@ -36,17 +36,8 @@ def _get_package(pl_name, version, robust, use_v8):
     fn = prefix + f"{ReleaseNames[pl_name]}.tgz"
     fu = f"{ReleaseURL}{version}/{fn}"
     fp = pl_dir / fn
-    print(f"'{fu}' -> '{fp}'")
     
-    try:
-        url_request.urlretrieve(fu, fp)
-    except Exception:
-        if robust:
-            traceback.print_exc()
-            return None, None
-        else:
-            raise
-    
+    print("OVERRIDE - using nix supplied package instead of downloading")
     return pl_name, fp
 
 
@@ -69,7 +60,8 @@ def extract(archives, version, flags):
     
     for pl_name, arc_path in archives.items():
         
-        with tarfile.open(arc_path) as tar:
+        arc_path_override = os.path.basename(arc_path)
+        with tarfile.open(arc_path_override) as tar:
             pl_dir = DataDir/pl_name
             system = plat_to_system(pl_name)
             libname = LibnameForSystem[system]
@@ -77,9 +69,6 @@ def extract(archives, version, flags):
             tar_extract_file(tar, f"{tar_libdir}/{libname}", pl_dir/libname)
             write_pdfium_info(pl_dir, version, origin="pdfium-binaries", flags=flags)
         
-        arc_path.unlink()
-
-
 BinaryPlatforms = list(ReleaseNames.keys())
 
 def main(platforms, version=None, robust=False, max_workers=None, use_v8=False):
